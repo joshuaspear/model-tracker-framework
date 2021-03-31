@@ -9,7 +9,7 @@ README = (HERE / "README.md").read_text()
 
 setuptools.setup(
     name='model_tracker_framework',
-    version='1.0.2',
+    version='1.0.3',
     description="An object-orientated framework for tracking machine learning projects.",
     long_description=README,
     packages=setuptools.find_packages(where="src"),
