@@ -9,14 +9,14 @@ README = (HERE / "README.md").read_text()
 
 setuptools.setup(
     name='model_tracker_framework',
-    version='1.0.3',
+    version='1.0.4',
     description="An object-orientated framework for tracking machine learning projects.",
     long_description=README,
     packages=setuptools.find_packages(where="src"),
     author="Joshua Spear",
     author_email="josh.spear9@gmail.com",
     long_description_content_type="text/markdown",
-    url="https://gitlab.com/kaggle-tings/model_tracker_framework",
+    url="https://gitlab.com/kaggle-tings/mtf",
     license='MIT',
     classifiers=[
         "License :: OSI Approved :: MIT License",
