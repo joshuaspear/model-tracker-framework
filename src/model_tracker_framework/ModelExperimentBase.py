@@ -139,7 +139,6 @@ class ModelExperimentBase(ModelTracker):
                 self.import_existing_json_tracker(existing_tracker_path, **updt_kwargs)
             else:
                 logger.info("Could not find tracker at location, creating new tracker")
-
             logger.info(" ***** Checking whether model exists in tracker ***** ")
             curr_model_nms = [rw["model_name"] for rw in self.rows]
             if self.model_name in curr_model_nms:
