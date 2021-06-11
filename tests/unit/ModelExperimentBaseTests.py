@@ -116,7 +116,7 @@ class ModelTrackerTests(unittest.TestCase):
 
         json_tracker = pd.read_json("tests/unit/model_tracker_run_experiment.json")
         
-        self.assertEqual(json_tracker["model_name"].iloc[1], "unit_tst_exp_1")
+        self.assertEqual(json_tracker["model_name"].iloc[1], "unit_tst_exp")
         self.assertTrue("precision" in json_tracker.columns)
         self.assertTrue("recall" in json_tracker.columns)
         self.assertEqual(json_tracker["experiment_description"].iloc[1], "tests/unit")
