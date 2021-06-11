@@ -91,8 +91,11 @@ class ModelTracker:
             exstng_track_df (pd.DataFrame): Pandas dataframe representing a model tracker
         """
         exstng_track_dict = exstng_track_df.to_dict("records")
+        exist_mdl_nms = [rw["model_name"] for rw in self.rows]
         for row in exstng_track_dict:
-            self.update_tracker_w_dict(row, **kwargs)
+            # Checks whether there is a model with the same name already in the dictionary
+            if row["model_name"] not in exist_mdl_nms:
+                self.update_tracker_w_dict(row, **kwargs)
 
     def import_existing_csv_tracker(self, existing_tracker_path:str, imprt_kwargs:dict = {}, rd_csv_kwargs:dict = {}):
         """Takes as an input a csv representing and model tracker and updates self with values from the csv. 
