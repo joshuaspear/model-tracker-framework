@@ -149,9 +149,10 @@ class ModelExperimentBase(ModelTracker):
                     dupe_indices = [idx for idx, mdl_nm in enumerate(curr_model_nms) if mdl_nm == self.model_name]
                     dupe_indices.sort(reverse=True)
                     for idx in dupe_indices:
+                        if os.path.exists(self.rows[idx]["output_save_location"]):
+                            shutil.rmtree(self.rows[idx]["output_save_location"])
                         del self.rows[idx]
-                    if os.path.exists(os.path.join(parent_sv_dir, self.model_name)):
-                        shutil.rmtree(os.path.join(parent_sv_dir, self.model_name))
+                    
                     self._create_output_sub_loc(parent_sv_dir)
                 elif dupe_model_nms.exp_option == "duplicate":
                     logger.info("Keeping both runs")
