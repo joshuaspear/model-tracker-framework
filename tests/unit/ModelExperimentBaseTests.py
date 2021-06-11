@@ -9,8 +9,8 @@ from sklearn.metrics import precision_score, recall_score
 
 class UnitTstExp(mtf.ModelExperimentBase):
     
-    def __init__(self, model_name, debug_skips_preprop_steps) -> None:
-        super().__init__(model_name, debug_skips_preprop_steps)
+    def __init__(self, model_name, debug_skips_preprop_steps, debug_train_kwargs) -> None:
+        super().__init__(model_name, debug_skips_preprop_steps, debug_train_kwargs)
         self.train_df = None
         self.test_df = None
         self.model = None
@@ -22,10 +22,18 @@ class UnitTstExp(mtf.ModelExperimentBase):
         self.test_df = df.iloc[-2:]
         
     def preprocessing_debug(self):
-        self.preprop_df = preprop_df.iloc[0:5]
+        if self.train_df is None:
+            df = pd.read_csv("tests/unit/unit_test_data.csv")
+            df = df[["Age", "Na_to_K", "Drug"]]
+            df = df[0:6]
+            self.train_df = df.iloc[:-2]
+            self.test_df = df.iloc[-2:]
+        else:
+            self.train_df = self.train_df[0:5]
         
-    def train_model(self):
-        self.model = SGDClassifier()
+        
+    def train_model(self, **kwargs):
+        self.model = SGDClassifier(**kwargs)
         self.model.fit(X=self.train_df[["Age", "Na_to_K"]], 
                        y=self.train_df["Drug"])
         
@@ -47,9 +55,12 @@ class ModelTrackerTests(unittest.TestCase):
 
     def test_preprocessing_debug_skips(self):
         model_exp_true_skip = UnitTstExp(model_name="unit_tst_exp",
-                                         debug_skips_preprop_steps=True)
-        # When running in debug we should expect only preprocessing_debug to run which should raise an error
-        self.assertRaises(NameError, lambda:model_exp_true_skip.preprocessing(debug=True))
+                                         debug_skips_preprop_steps=True, 
+                                         debug_train_kwargs={"penalty": 'elasticnet'})
+        # When running in debug we should expect only preprocessing_debug to run the first part of the if statement in preprocessing_debug
+        model_exp_true_skip.preprocessing(debug=True)
+        self.assertEqual(model_exp_true_skip.train_df.shape, (4, 3))
+        self.assertEqual(model_exp_true_skip.test_df.shape, (2, 3))
         
         # When running in non debug we should expect the processed data to be in the self.train_df and self.test_df attributes
         model_exp_true_skip.preprocessing(debug=False)
@@ -58,9 +69,12 @@ class ModelTrackerTests(unittest.TestCase):
 
     
     def test_preprocessing_debug_no_skips(self):
-        model_exp = UnitTstExp(model_name="unit_tst_exp", debug_skips_preprop_steps=False)
-        # When running in debug we should expect the train set to have 3 rows and test to have 2
-        self.assertRaises(NameError, lambda:model_exp.preprocessing(debug=True))
+        model_exp = UnitTstExp(model_name="unit_tst_exp", debug_skips_preprop_steps=False, 
+                                         debug_train_kwargs={"penalty": 'elasticnet'})
+        # When running in debug we should expect the train set to have 5 rows and test to have 2
+        model_exp.preprocessing(debug=True)
+        self.assertEqual(model_exp.train_df.shape, (5, 3))
+        self.assertEqual(model_exp.test_df.shape, (2, 3))
         
         # When running in debug we should expect the train set to have 7 rows and test to have 2
         model_exp.preprocessing(debug=False)
@@ -68,7 +82,8 @@ class ModelTrackerTests(unittest.TestCase):
         self.assertEqual(model_exp.test_df.shape, (2, 3))
         
     def test_run_experiment(self):
-        model_exp = UnitTstExp(model_name="unit_tst_exp", debug_skips_preprop_steps=False)
+        model_exp = UnitTstExp(model_name="unit_tst_exp", debug_skips_preprop_steps=False, 
+                                         debug_train_kwargs={"penalty": 'elasticnet'})
         # 1. debug false, overwrite, new tracker
         # Expected output:
         model_exp.run_experiment(existing_tracker_path="tests/unit/model_tracker_run_experiment.json",
@@ -83,14 +98,14 @@ class ModelTrackerTests(unittest.TestCase):
         self.assertEqual(json_tracker["experiment_description"].iloc[0], "tests/unit")
         self.assertEqual(json_tracker["output_save_location"].iloc[0], "tests/unit/unit_tst_exp")
         self.assertTrue(os.path.exists("tests/unit/unit_tst_exp"))
-        
+        self.assertEqual(model_exp.model.get_params()["penalty"], 'l2')
         
         # 2. debug true, overwrite, existing tracker
-        self.assertRaises(NameError, lambda:model_exp.run_experiment(existing_tracker_path="tests/unit/model_tracker_run_experiment.json",
-                                                                     debug=True,
-                                                                     exp_description = "tests/unit", 
-                                                                     parent_sv_dir = "tests/unit/",
-                                                                     dupe_model_nms=mtf.ExperimentOption("overwrite")))
+        model_exp.run_experiment(existing_tracker_path="tests/unit/model_tracker_run_experiment.json",
+                                 debug=True, exp_description = "tests/unit", parent_sv_dir = "tests/unit/",
+                                 dupe_model_nms=mtf.ExperimentOption("overwrite"))
+        self.assertEqual(model_exp.model.get_params()["penalty"], 'elasticnet')
+        
         
         # 3. debug false, overwrite, existing tracker
         model_exp.run_experiment(existing_tracker_path="tests/unit/model_tracker_run_experiment.json",
