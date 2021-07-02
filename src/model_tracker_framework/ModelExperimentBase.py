@@ -12,7 +12,7 @@ logger = logging.getLogger("mtf_logger")
 
 class ModelExperimentBase(ModelTracker):
 
-    def __init__(self, model_name:str, debug_skips_preprop_steps:bool):
+    def __init__(self, model_name:str, debug_skips_preprop_steps:bool, debug_train_kwargs:dict = {}):
         """ModelExperimentBase contains keys methods for running experiments and updating an underlying model tracker.
         An experiment is defined as a single observation in the model tracker. 
         The class has been designed such that a (or multiple) "ProjectModelExperiment" class(es) is (are) defined which implement 
@@ -30,12 +30,15 @@ class ModelExperimentBase(ModelTracker):
             debug_skips_preprop_steps (bool): Defines whether self.preprocessing_debug replaces self.preprocessing_steps or follows it 
             when running in debug model. If set to True, the self.preprocessing_debug will replace self.preprocessing_steps. 
             This attribute is designed to be perminently set wherever the preprocessing steps are defined.
+            debug_train_kwargs (dict, optional): Optional set of parameters to pass to train_model when running in debug mode
         """
         super().__init__() 
         self.debug_skips_preprop_steps = debug_skips_preprop_steps
         self.model_name = model_name
+        self.debug_train_kwargs = debug_train_kwargs
         self.results = {}
         self.model_sv_loc = None
+        
 
 
     def _create_output_sub_loc(self, parent_loc:str, sub_dir_nm: str = None):
@@ -129,7 +132,10 @@ class ModelExperimentBase(ModelTracker):
                 self.preprocessing(debug=True)
             except NotImplementedError:
                 logger.warning("preprocessing_steps not implemented however skipping error.")
-            self.train_model(**train_kwargs)
+            if len(self.debug_train_kwargs) > 0:
+                self.train_model(**self.debug_train_kwargs)
+            else:
+                self.train_model(**train_kwargs)
 
         else:
             logger.info(" ***** Importing existing tracker ***** ")
@@ -139,7 +145,6 @@ class ModelExperimentBase(ModelTracker):
                 self.import_existing_json_tracker(existing_tracker_path, **updt_kwargs)
             else:
                 logger.info("Could not find tracker at location, creating new tracker")
-
             logger.info(" ***** Checking whether model exists in tracker ***** ")
             curr_model_nms = [rw["model_name"] for rw in self.rows]
             if self.model_name in curr_model_nms:
@@ -150,9 +155,10 @@ class ModelExperimentBase(ModelTracker):
                     dupe_indices = [idx for idx, mdl_nm in enumerate(curr_model_nms) if mdl_nm == self.model_name]
                     dupe_indices.sort(reverse=True)
                     for idx in dupe_indices:
+                        if os.path.exists(self.rows[idx]["output_save_location"]):
+                            shutil.rmtree(self.rows[idx]["output_save_location"])
                         del self.rows[idx]
-                    if os.path.exists(os.path.join(parent_sv_dir, self.model_name)):
-                        shutil.rmtree(os.path.join(parent_sv_dir, self.model_name))
+                    
                     self._create_output_sub_loc(parent_sv_dir)
                 elif dupe_model_nms.exp_option == "duplicate":
                     logger.info("Keeping both runs")

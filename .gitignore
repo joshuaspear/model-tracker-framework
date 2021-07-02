@@ -615,3 +615,7 @@ MigrationBackup/
 examples/drug200.csv
 examples/model_output/*
 examples/model_tracker.json
+
+tests/unit/model_tracker_run_experiment.json
+tests/unit/unit_tst_exp
+tests/unit/unit_tst_exp_1
