@@ -9,7 +9,7 @@ README = (HERE / "README.md").read_text()
 
 setuptools.setup(
     name='model_tracker_framework',
-    version='1.0.5',
+    version='1.0.6',
     description="An object-orientated framework for tracking machine learning projects.",
     long_description=README,
     packages=setuptools.find_packages(where="src"),
@@ -20,11 +20,8 @@ setuptools.setup(
     license='MIT',
     classifiers=[
         "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.8",
-        "Development Status :: 4 - Beta"
     ],
     package_dir={"": "src"},
     python_requires=">=3.6",
-    install_requires=["pandas>=1.2.3"]
+    install_requires=["pandas"]
 )
