@@ -1,5 +1,6 @@
 import os
 import shutil
+import time
 
 from datetime import datetime
 import logging
@@ -153,6 +154,11 @@ class ModelExperimentBase(ModelTracker):
                         del self.rows[idx]
                     if os.path.exists(os.path.join(parent_sv_dir, self.model_name)):
                         shutil.rmtree(os.path.join(parent_sv_dir, self.model_name))
+                        dir_not_rmved = True
+                        while(dir_not_rmved):
+                            time.sleep(1)
+                            dir_not_rmved = os.path.exists(os.path.join(
+                                parent_sv_dir, self.model_name))
                     self._create_output_sub_loc(parent_sv_dir)
                 elif dupe_model_nms.exp_option == "duplicate":
                     logger.info("Keeping both runs")
