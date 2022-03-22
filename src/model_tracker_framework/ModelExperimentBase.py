@@ -89,7 +89,8 @@ class ModelExperimentBase(ModelTracker):
         raise NotImplementedError("train_model method should be implemented on a per experiment basis")
 
     def run_experiment(self, existing_tracker_path:str, exp_description:str, parent_sv_dir:str, prev_run_notes:str="", 
-    train_kwargs: dict = {}, updt_kwargs: dict = {}, dupe_model_nms: ExperimentOption = ExperimentOption(None), debug=False):
+                       train_kwargs: dict = {}, updt_kwargs: dict = {}, 
+                       dupe_model_nms: ExperimentOption = ExperimentOption(None), debug=False, debug_sv_dir:str=None):
         """Runs an experiment in either 'normal' or debug mode specified by the debug parameter. 
         An experiment in 'normal' mode consists of the following:
         1. Create or import an existing tracker from json. If the tracker is imported, check whether an entry with the same 
@@ -119,6 +120,7 @@ class ModelExperimentBase(ModelTracker):
             will be used etc)
             ExperimentOption('None') will raise an exception. Defaults to ExperimentOption(None).
             debug (bool, optional): Defines whether the experiment should be run in debug mode. Defaults to False.
+            debug_sv_dir (str): Assigns location to model_save_loc if the debug option is selected
         """
         # TODO: Move parent_sv_dir to an attribute of the class such that it can be set by parent classes
 
@@ -126,6 +128,7 @@ class ModelExperimentBase(ModelTracker):
             logger.info(" ***** Running in debug mode ***** ")
             logger.info("""No results will be captured in debug mode. 
             If preprocessing method has been defined with debug facilities, this will also run.""")
+            self.model_sv_loc = debug_sv_dir
             try:
                 self.preprocessing(debug=True)
             except NotImplementedError:
