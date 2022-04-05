@@ -88,9 +88,12 @@ class ModelExperimentBase(ModelTracker):
     def train_model(self):
         raise NotImplementedError("train_model method should be implemented on a per experiment basis")
 
-    def run_experiment(self, existing_tracker_path:str, exp_description:str, parent_sv_dir:str, prev_run_notes:str="", 
+    def run_experiment(self, existing_tracker_path:str, exp_description:str, 
+                       parent_sv_dir:str, prev_run_notes:str="", 
                        train_kwargs: dict = {}, updt_kwargs: dict = {}, 
-                       dupe_model_nms: ExperimentOption = ExperimentOption(None), debug=False, debug_sv_dir:str=None):
+                       dupe_model_nms: ExperimentOption = ExperimentOption(None), 
+                       debug=False, debug_sv_dir:str=None, 
+                       force_columns:bool=False):
         """Runs an experiment in either 'normal' or debug mode specified by the debug parameter. 
         An experiment in 'normal' mode consists of the following:
         1. Create or import an existing tracker from json. If the tracker is imported, check whether an entry with the same 
@@ -121,6 +124,7 @@ class ModelExperimentBase(ModelTracker):
             ExperimentOption('None') will raise an exception. Defaults to ExperimentOption(None).
             debug (bool, optional): Defines whether the experiment should be run in debug mode. Defaults to False.
             debug_sv_dir (str): Assigns location to model_save_loc if the debug option is selected
+            force_columns (bool): Option to force new columns into the tracker
         """
         # TODO: Move parent_sv_dir to an attribute of the class such that it can be set by parent classes
 
@@ -140,7 +144,8 @@ class ModelExperimentBase(ModelTracker):
             if self.check_tracker_exists(existing_tracker_path=existing_tracker_path):
                 logger.info("Tracker identified. Importing...")
                 # TODO: Implement the ability to specify what type of tracker to import i.e. dataframe/csv/json etc
-                self.import_existing_json_tracker(existing_tracker_path, **updt_kwargs)
+                self.import_existing_json_tracker(existing_tracker_path, 
+                                                  **updt_kwargs)
             else:
                 logger.info("Could not find tracker at location, creating new tracker")
 
@@ -199,7 +204,8 @@ class ModelExperimentBase(ModelTracker):
                                 "output_save_location": self.model_sv_loc
                                 }
             logger.info(" ***** Updating tracker ***** ")
-            self.update_tracker_w_dict(new_tracker_line)
+            self.update_tracker_w_dict(new_tracker_line, 
+                                       force_columns=force_columns)
             logger.info(" ***** Updating json ***** ")
             self.tracker_to_json(json_dir=existing_tracker_path)
 
