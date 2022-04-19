@@ -8,7 +8,9 @@ logger = logging.getLogger("mtf_logger")
 
 class SupervisedModelExperiment(ModelExperimentBase):
 
-    def __init__(self, model_name, debug_skips_preprop_steps):
+    def __init__(self, model_name, debug_skips_preprop_steps,
+                 existing_tracker_path, exp_description, parent_sv_dir,
+                 **kwargs):
         """Exactly the same as ModelExperimentBase but contains additional attributes that may be helpful in a supervised learning  
         context
         Args:
@@ -17,7 +19,11 @@ class SupervisedModelExperiment(ModelExperimentBase):
             when running in debug model. If set to True, the self.preprocessing_debug will replace self.preprocessing_steps. 
             This attribute is designed to be perminently set wherever the preprocessing steps are defined.
         """
-        super().__init__(model_name, debug_skips_preprop_steps)
+        super().__init__(model_name=model_name, 
+                         debug_skips_preprop_steps=debug_skips_preprop_steps, 
+                         existing_tracker_path=existing_tracker_path, 
+                         exp_description=exp_description, 
+                         parent_sv_dir=parent_sv_dir, **kwargs)
         self.y_true_train = None
         self.y_pred_train = None
         self.X_train = None

@@ -38,8 +38,12 @@ if not os.path.exists(model_output_dir):
 
 class ModelExperimentProject(SupervisedModelExperiment):
     # Ordinarily this should be split out into a seperate .py file
-    def __init__(self, model_name):
-        super().__init__(model_name, debug_skips_preprop_steps=False)
+    def __init__(self, model_name,  existing_tracker_path, exp_description, 
+                 parent_sv_dir, **kwargs):
+        super().__init__(model_name=model_name, debug_skips_preprop_steps=False,
+                         existing_tracker_path=existing_tracker_path, 
+                         exp_description=exp_description, 
+                         parent_sv_dir=parent_sv_dir, **kwargs)
         self.model = None
         self.cat_x_vars = ["sex", "bp", "cholesterol"]
 
@@ -75,8 +79,12 @@ class ModelExperimentProject(SupervisedModelExperiment):
 
 class ModelExperiment1(ModelExperimentProject):
 
-    def __init__(self, model_name):
-        super().__init__(model_name)
+    def __init__(self, model_name,  existing_tracker_path, exp_description, 
+                 parent_sv_dir, **kwargs):
+        super().__init__(model_name=model_name,
+                         existing_tracker_path=existing_tracker_path, 
+                         exp_description=exp_description, 
+                         parent_sv_dir=parent_sv_dir, **kwargs)
         
 
     def train_model(self):
@@ -86,10 +94,11 @@ class ModelExperiment1(ModelExperimentProject):
         
 
 if __name__ == "__main__":
-    exp1 = ModelExperiment1("Experiment_1")
-    exp1.run_experiment(
-        existing_tracker_path=os.path.join(curr_dir, "model_tracker.json"),
+    existing_tracker_path=os.path.join(curr_dir, "model_tracker.json")
+    exp1 = ModelExperiment1(
+        model_name="Experiment_1", 
+        existing_tracker_path=existing_tracker_path,
         exp_description="Test experiment", 
-        # Need to work out how to make these relative!
-        parent_sv_dir = os.path.join(curr_dir, "model_output"),
-        dupe_model_nms=ExperimentOption("overwrite"), debug=False)
+        parent_sv_dir = os.path.join(curr_dir, "model_output"))
+    exp1.run_experiment(dupe_model_nms=ExperimentOption("overwrite"), 
+                        debug=False)

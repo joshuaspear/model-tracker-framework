@@ -1,19 +1,24 @@
+from datetime import datetime
+import logging
 import os
 import shutil
 import time
-
-from datetime import datetime
-import logging
+from typing import Dict
 
 from .MTFSupporting import ModelExperimentBaseError, ExperimentOption
 from .ModelTracker import ModelTracker
 
 logger = logging.getLogger("mtf_logger")
 
-
+# TODO: Midway through converting all params to class definition
 class ModelExperimentBase(ModelTracker):
 
-    def __init__(self, model_name:str, debug_skips_preprop_steps:bool):
+    def __init__(self, model_name:str, debug_skips_preprop_steps:bool, 
+                 existing_tracker_path:str, exp_description:str, 
+                 parent_sv_dir:str, prev_run_notes:str="", 
+                 preprop_kwargs:Dict ={}, preprop_debug_kwargs:Dict={},
+                 train_kwargs:Dict={}, updt_kwargs: dict = {}, 
+                 debug_sv_dir:str=None, force_columns:bool=False):
         """ModelExperimentBase contains keys methods for running experiments and updating an underlying model tracker.
         An experiment is defined as a single observation in the model tracker. 
         The class has been designed such that a (or multiple) "ProjectModelExperiment" class(es) is (are) defined which implement 
@@ -31,12 +36,36 @@ class ModelExperimentBase(ModelTracker):
             debug_skips_preprop_steps (bool): Defines whether self.preprocessing_debug replaces self.preprocessing_steps or follows it 
             when running in debug model. If set to True, the self.preprocessing_debug will replace self.preprocessing_steps. 
             This attribute is designed to be perminently set wherever the preprocessing steps are defined.
+            existing_tracker_path (str): Location of existing json tracker to update. 
+            exp_description (str): A description of the experiment. 
+            parent_sv_dir (str): The location of the parent directory where the subdirectory should be made to store any 
+            outputs such as graphs.. 
+            prev_run_notes (str, optional): A description of the differences compared to a previous experiment. Defaults to "".
+            preprop_kwargs (dict, optional): kwargs relating to the self.preprocessing_steps
+            preprop_debug_kwargs (dict, optional): kwargs relating to the self.preprocessing_debug
+            train_kwargs (dict, optional): kwargs relating to self.train_model. Defaults to {}.
+            debug_sv_dir (str): Assigns location to model_save_loc if the debug option is selected
+            force_columns (bool): Option to force new columns into the tracker
+            updt_kwargs (dict, optional): kwargs relating to self.import_existing_json_tracker. See ModelTracker for more 
+            info. Defaults to {}.
         """
         super().__init__() 
+        print("ModelExperimentBase init")
+        print(existing_tracker_path)
         self.debug_skips_preprop_steps = debug_skips_preprop_steps
         self.model_name = model_name
         self.results = {}
         self.model_sv_loc = None
+        self.existing_tracker_path = existing_tracker_path
+        self.exp_description = exp_description 
+        self.parent_sv_dir = parent_sv_dir 
+        self.prev_run_notes = prev_run_notes 
+        self.preprop_kwargs = preprop_kwargs
+        self.preprop_debug_kwargs = preprop_debug_kwargs 
+        self.train_kwargs = train_kwargs
+        self.updt_kwargs = updt_kwargs 
+        self.debug_sv_dir = debug_sv_dir 
+        self.force_columns = force_columns
 
 
     def _create_output_sub_loc(self, parent_loc:str, sub_dir_nm: str = None):
@@ -58,10 +87,10 @@ class ModelExperimentBase(ModelTracker):
     def evaluate_model(self):
         raise NotImplementedError("evaluate_model method should be implemented on a experiment type basis or pass if not required.")
     
-    def preprocessing_steps(self):
+    def preprocessing_steps(self, **kwargs):
         raise NotImplementedError("preprocessing_steps method should be implemented on a experiment type basis or pass if not required.")
 
-    def preprocessing_debug(self):
+    def preprocessing_debug(self, **kwargs):
         # Note: If the debug_skips_preprop_steps attribute is set to True, this behaves as an alternate set of preprocessing steps 
         # to preprocessing_steps i.e. if a different dataset should be imported. 
         # If debug_skips_preprop_steps is set to False, this behaves as a postprocessing to the preprocessing_steps i.e. it could sample 
@@ -77,23 +106,20 @@ class ModelExperimentBase(ModelTracker):
         """
         if debug:
             if not self.debug_skips_preprop_steps:
-                self.preprocessing_steps()
+                self.preprocessing_steps(**self.preprop_kwargs)
             try:
-                self.preprocessing_debug()
+                self.preprocessing_debug(**self.preprop_debug_kwargs)
             except NotImplementedError:
                 logger.warning("preprocessing_debug not implemented however skipping error.")
         else:
-            self.preprocessing_steps()
+            self.preprocessing_steps(**self.preprop_kwargs)
 
-    def train_model(self):
+    def train_model(self, **kwargs):
         raise NotImplementedError("train_model method should be implemented on a per experiment basis")
 
-    def run_experiment(self, existing_tracker_path:str, exp_description:str, 
-                       parent_sv_dir:str, prev_run_notes:str="", 
-                       train_kwargs: dict = {}, updt_kwargs: dict = {}, 
-                       dupe_model_nms: ExperimentOption = ExperimentOption(None), 
-                       debug=False, debug_sv_dir:str=None, 
-                       force_columns:bool=False):
+    def run_experiment(self, debug=False, 
+                       dupe_model_nms: ExperimentOption = ExperimentOption(
+                           None)):
         """Runs an experiment in either 'normal' or debug mode specified by the debug parameter. 
         An experiment in 'normal' mode consists of the following:
         1. Create or import an existing tracker from json. If the tracker is imported, check whether an entry with the same 
@@ -108,44 +134,32 @@ class ModelExperimentBase(ModelTracker):
         
 
         Args:
-            existing_tracker_path (str): Location of existing json tracker to update. 
-            exp_description (str): A description of the experiment. 
-            parent_sv_dir (str): The location of the parent directory where the subdirectory should be made to store any 
-            outputs such as graphs.. 
-            prev_run_notes (str, optional): A description of the differences compared to a previous experiment. Defaults to "".
-            train_kwargs (dict, optional): kwargs relating to self.train_model. Defaults to {}.
-            updt_kwargs (dict, optional): kwargs relating to self.import_existing_json_tracker. See ModelTracker for more 
-            info. Defaults to {}.
             dupe_model_nms (ExperimentOption, optional): Defines what action should be taken if an experiment with the same 
             self.model_name is found in the tracker. 
             ExperimentOption('overwrite') will overwrite the previous experiment. 
             ExperimentOption('duplicate') will add both experiments and will append _1 to the new experiment (note if self.model_name_1 also exists, _2 
             will be used etc)
-            ExperimentOption('None') will raise an exception. Defaults to ExperimentOption(None).
             debug (bool, optional): Defines whether the experiment should be run in debug mode. Defaults to False.
-            debug_sv_dir (str): Assigns location to model_save_loc if the debug option is selected
-            force_columns (bool): Option to force new columns into the tracker
         """
-        # TODO: Move parent_sv_dir to an attribute of the class such that it can be set by parent classes
-
         if debug:
             logger.info(" ***** Running in debug mode ***** ")
             logger.info("""No results will be captured in debug mode. 
             If preprocessing method has been defined with debug facilities, this will also run.""")
-            self.model_sv_loc = debug_sv_dir
+            self.model_sv_loc = self.debug_sv_dir
             try:
                 self.preprocessing(debug=True)
             except NotImplementedError:
                 logger.warning("preprocessing_steps not implemented however skipping error.")
-            self.train_model(**train_kwargs)
+            self.train_model(**self.train_kwargs)
 
         else:
             logger.info(" ***** Importing existing tracker ***** ")
-            if self.check_tracker_exists(existing_tracker_path=existing_tracker_path):
+            if self.check_tracker_exists(existing_tracker_path=
+                                         self.existing_tracker_path):
                 logger.info("Tracker identified. Importing...")
                 # TODO: Implement the ability to specify what type of tracker to import i.e. dataframe/csv/json etc
-                self.import_existing_json_tracker(existing_tracker_path, 
-                                                  **updt_kwargs)
+                self.import_existing_json_tracker(self.existing_tracker_path, 
+                                                  **self.updt_kwargs)
             else:
                 logger.info("Could not find tracker at location, creating new tracker")
 
@@ -160,14 +174,16 @@ class ModelExperimentBase(ModelTracker):
                     dupe_indices.sort(reverse=True)
                     for idx in dupe_indices:
                         del self.rows[idx]
-                    if os.path.exists(os.path.join(parent_sv_dir, self.model_name)):
-                        shutil.rmtree(os.path.join(parent_sv_dir, self.model_name))
+                    if os.path.exists(os.path.join(self.parent_sv_dir, 
+                                                   self.model_name)):
+                        shutil.rmtree(os.path.join(self.parent_sv_dir, 
+                                                   self.model_name))
                         dir_not_rmved = True
                         while(dir_not_rmved):
                             time.sleep(1)
                             dir_not_rmved = os.path.exists(os.path.join(
-                                parent_sv_dir, self.model_name))
-                    self._create_output_sub_loc(parent_sv_dir)
+                                self.parent_sv_dir, self.model_name))
+                    self._create_output_sub_loc(self.parent_sv_dir)
                 elif dupe_model_nms.exp_option == "duplicate":
                     logger.info("Keeping both runs")
                     avail_loc = False
@@ -175,15 +191,17 @@ class ModelExperimentBase(ModelTracker):
                     # Loop through adding 1 to the end each time to find available name to save model 
                     while avail_loc == False:
                         sup_dir = "{}_{}".format(self.model_name, sup_dir_idx)
-                        if not os.path.exists(os.path.join(parent_sv_dir, sup_dir)):
+                        if not os.path.exists(os.path.join(self.parent_sv_dir, 
+                                                           sup_dir)):
                             avail_loc = True
-                            self._create_output_sub_loc(parent_sv_dir, sup_dir)
+                            self._create_output_sub_loc(self.parent_sv_dir, 
+                                                        sup_dir)
                         sup_dir_idx  =+ 1
                 elif dupe_model_nms.exp_option == None:
                     raise ModelExperimentBaseError(
                 "Run with model name {} already exists therefore duplicate or overwrite must be specified in the dupe_model_nms option".format(self.model_name))
             else:
-                self._create_output_sub_loc(parent_sv_dir)
+                self._create_output_sub_loc(self.parent_sv_dir)
 
             logger.info(" **** Training model ***** ")
             train_time_strt = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
@@ -191,22 +209,23 @@ class ModelExperimentBase(ModelTracker):
                 self.preprocessing()
             except NotImplementedError:
                 logger.warning("preprocessing_steps not implemented however skipping error.")
-            self.train_model(**train_kwargs)
+            self.train_model(**self.train_kwargs)
             train_time_end = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
             logger.info(" ***** Evaluating model ***** ")
             self.evaluate_model()
             new_tracker_line = {**self.results,
                                 "model_name": self.model_name,
-                                "experiment_description": exp_description,
-                                "prev_run_notes": prev_run_notes,
+                                "experiment_description": self.exp_description,
+                                "prev_run_notes": self.prev_run_notes,
                                 "train_time_strt": train_time_strt,
                                 "train_time_end": train_time_end,
-                                "output_save_location": self.model_sv_loc
+                                "output_save_location": self.model_sv_loc,
+                                **self.train_kwargs, **self.preprop_kwargs
                                 }
             logger.info(" ***** Updating tracker ***** ")
             self.update_tracker_w_dict(new_tracker_line, 
-                                       force_columns=force_columns)
+                                       force_columns=self.force_columns)
             logger.info(" ***** Updating json ***** ")
-            self.tracker_to_json(json_dir=existing_tracker_path)
+            self.tracker_to_json(json_dir=self.existing_tracker_path)
 
 
