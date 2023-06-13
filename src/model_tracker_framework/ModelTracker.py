@@ -8,7 +8,7 @@ logger = logging.getLogger("mtf_logger")
 
 class ModelTracker:
     
-    def __init__(self):
+    def __init__(self, u_id:str="model_name"):
         """Class representing a 'model tracker'. 
         self.rows is a list dictionaries where each dictionary is of the form 
         {column_name: value} and each dictionary represents an individual 
@@ -18,6 +18,7 @@ class ModelTracker:
         """
         self.rows = []
         self.column_names = []
+        self.u_id = u_id
 
     def _get_check_consistent_col_names(self, new_row_col_names:list, 
                                         force_columns:bool=False) -> set:
@@ -63,13 +64,33 @@ class ModelTracker:
             force_columns (bool, optional): Option to force new column names in 
             and avoid exception. Defaults to False.
         """
-
+        try:
+            row_idx = self.get_cur_row_index(u_id=row_dict[self.u_id])
+            logger.warn(
+                "Model already exists in tracker, overwriting relevant values")
+            old_row = self.rows.pop(row_idx)
+            for i in row_dict:
+                old_row[i] = row_dict[i]
+            row_dict = old_row
+        except KeyError as e:
+            pass     
         new_row_col_names = [col for col in row_dict.keys()]
         nw_col_names = self._get_check_consistent_col_names(
             new_row_col_names=new_row_col_names, force_columns=force_columns)
         if len(nw_col_names) > 0:
             self.column_names += nw_col_names
         self.rows.append(row_dict)
+        
+    def check_model_exists(self, u_id:str):
+        curr_model_nms = [rw[u_id] for rw in self.rows]
+        res = u_id in curr_model_nms
+        return res
+    
+    def get_cur_row_index(self, u_id:str):
+        for idx, rw in enumerate(self.rows):
+            if rw[self.u_id] == u_id:
+                return idx
+        raise KeyError("Model does not exist in tracker")
 
     def tracker_to_pandas_df(self)->pd.DataFrame:
         """Converts the values stored in self.rows and returns in the form of a 
@@ -80,6 +101,8 @@ class ModelTracker:
         """
         dict_df = pd.DataFrame.from_dict(self.rows)
         return dict_df
+    
+    
 
     def tracker_to_csv(self, csv_dir:str, **kwargs):
         """Saves the tracker i.e. values in self.rows as a csv. This is performed 
