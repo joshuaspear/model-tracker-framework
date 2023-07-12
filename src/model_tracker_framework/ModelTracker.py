@@ -1,5 +1,6 @@
 import logging
 import os
+from typing import Any, Callable, Dict, List
 
 import pandas as pd
 
@@ -16,9 +17,9 @@ class ModelTracker:
         self.column_names is a list of unique column_name value from self.rows
         
         """
-        self.rows = []
-        self.column_names = []
-        self.u_id = u_id
+        self.rows:List[Dict[str,Any]] = []
+        self.column_names:List[str] = []
+        self.u_id:str = u_id
 
     def _get_check_consistent_col_names(self, new_row_col_names:list, 
                                         force_columns:bool=False) -> set:
@@ -53,6 +54,23 @@ class ModelTracker:
                 assert(len(miss_frm_exst_col) == 0), miss_frm_exst_col_wrn
                 assert(len(nw_col_names) == 0), nw_col_names_wrn
         return nw_col_names
+    
+    def write_u_id(self, u_id_update:Callable):
+        """Writes a column to each row named self.u_id according to the function
+        provided in u_id_update. Useful when a tracker has previously been 
+        defined with a different u_id to the one required.
+
+        Args:
+            u_id_update (Callable): Function which takes in a individual values
+            of self.row i.e. a Dict[str,Any]. Should return an Any.
+        """
+        for row in self.rows:
+            try:
+                row[self.u_id]
+                if row[self.u_id] is None:
+                    row[self.u_id] = u_id_update(row)    
+            except KeyError as e:
+                row[self.u_id] = u_id_update(row)
 
     def update_tracker_w_dict(self, row_dict:dict, force_columns:bool=False):
         """Updates the self.rows and self.column_names with the new values 
